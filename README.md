@@ -16,6 +16,34 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
+## Building for Android
+
+Before running an Android build locally, ensure the Android SDK is installed and `ANDROID_HOME` is set:
+
+```bash
+# macOS (add to ~/.zshrc or ~/.bash_profile)
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+
+# Linux (add to ~/.bashrc)
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+```
+
+Then run:
+
+```bash
+eas build --platform android --local
+```
+
+For cloud builds (recommended), use [EAS Build](https://docs.expo.dev/build/introduction/) which handles the Android SDK automatically:
+
+```bash
+eas build --platform android
+```
+
 In the output, you'll find options to open the app in a
 
 - [development build](https://docs.expo.dev/develop/development-builds/introduction/)
