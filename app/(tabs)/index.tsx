@@ -121,12 +121,12 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scroll}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View className="flex-row justify-between items-center px-5 pt-3 pb-2">
           <View>
-            <Text style={styles.greeting}>Welcome back 👋</Text>
-            <Text style={styles.appName}>ChessRanga</Text>
+            <Text className="text-[#aaa] text-sm">Welcome back 👋</Text>
+            <Text className="text-brand-gold text-[26px] font-extrabold tracking-widest">ChessRanga</Text>
           </View>
-          <TouchableOpacity style={styles.notifButton}>
+          <TouchableOpacity className="p-2 bg-brand-navy rounded-xl">
             <Ionicons name="notifications-outline" size={24} color="#F0B429" />
           </TouchableOpacity>
         </View>
@@ -212,29 +212,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: 24,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  greeting: {
-    color: "#aaa",
-    fontSize: 14,
-  },
-  appName: {
-    color: "#F0B429",
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  notifButton: {
-    padding: 8,
-    backgroundColor: "#1A1A2E",
-    borderRadius: 12,
   },
   heroBanner: {
     marginHorizontal: 20,
