@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.samarthraj11.chessranga"
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +18,6 @@
         "foregroundImage": "./assets/images/chess.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
       "package": "com.samarthraj11.chessranga"
     },
     "web": {
