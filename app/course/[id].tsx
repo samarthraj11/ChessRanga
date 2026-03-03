@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -58,7 +58,7 @@ export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [currentCourseId, setCurrentCourseId] = useState<string>(id || "1");
-  const [autoPlayNext, setAutoPlayNext] = useState(false);
+  const autoPlayNextRef = useRef(false);
   const course = COURSES[currentCourseId] ?? COURSES["1"];
 
   const player = useVimeoPlayer(course.vimeoUrl, VIMEO_PLAYER_OPTIONS);
@@ -66,7 +66,20 @@ export default function CourseDetailScreen() {
   const [playing, setPlaying] = useState(false);
   const [videoId, setVideoId] = useState<number | undefined>(undefined);
 
-  const loaded = useVimeoEvent(player, "loaded");
+  useVimeoEvent(player, "loaded", () => {
+    player.getVideoId().then((vid) => {
+      setVideoId(vid);
+    }).catch((err) => {
+      console.error("Error fetching video ID:", err);
+    });
+
+    if (autoPlayNextRef.current) {
+      player.play().catch((err) => {
+        console.error("Error auto-playing next video:", err);
+      });
+      autoPlayNextRef.current = false;
+    }
+  });
   const timeupdate = useVimeoEvent(player, "timeupdate", TIMEUPDATE_THROTTLE_MS);
   const progress = useVimeoEvent(player, "progress");
   const volumeStatus = useVimeoEvent(player, "volumechange");
@@ -86,7 +99,7 @@ export default function CourseDetailScreen() {
 
     if (currentIndex < courseKeys.length - 1) {
       const nextCourseId = courseKeys[currentIndex + 1];
-      setAutoPlayNext(true);
+      autoPlayNextRef.current = true;
       setCurrentCourseId(nextCourseId);
     } else {
       Alert.alert("Finished", "You have completed all courses!");
@@ -156,25 +169,6 @@ export default function CourseDetailScreen() {
   useVimeoEvent(player, "pause", () => {
     setPlaying(false);
   });
-
-  useEffect(() => {
-    if (loaded?.id) {
-      player.getVideoId().then((vid) => {
-        setVideoId(vid);
-      }).catch((err) => {
-        console.error("Error fetching video ID:", err);
-      });
-    }
-  }, [loaded?.id, player]);
-
-  useEffect(() => {
-    if (autoPlayNext && loaded?.id) {
-      player.play().catch((err) => {
-        console.error("Error auto-playing next video:", err);
-      });
-      setAutoPlayNext(false);
-    }
-  }, [autoPlayNext, loaded?.id, player]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
