@@ -25,7 +25,7 @@ const COURSES: Record<
   "1": {
     title: "Understanding Caro-Kann",
     subtitle: "Master the Caro-Kann Defense from scratch",
-    vimeoUrl: "https://player.vimeo.com/video/76979871?h=8272103f6e",
+    vimeoUrl: "https://vimeo.com/5399386",
   },
   "2": {
     title: "Sicilian Defense Masterclass",
