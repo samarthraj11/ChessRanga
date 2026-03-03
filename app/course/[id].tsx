@@ -41,6 +41,8 @@ const COURSES: Record<
 
 const VOLUME_LEVELS = [0.25, 0.5, 0.75, 1.0];
 const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+const TIMEUPDATE_THROTTLE_MS = 250;
+const VIMEO_PLAYER_OPTIONS = { autoplay: true, controls: true };
 
 const safeNumber = (value: number | undefined | null) => {
   return value ?? 0;
@@ -57,21 +59,15 @@ export default function CourseDetailScreen() {
   const router = useRouter();
   const course = COURSES[id] ?? COURSES["1"];
 
-  const player = useVimeoPlayer(course.vimeoUrl, {
-    autoplay: true,
-    controls: true,
-  });
+  const player = useVimeoPlayer(course.vimeoUrl, VIMEO_PLAYER_OPTIONS);
 
-  const { oEmbed } = useVimeoOEmbed(course.vimeoUrl, {
-    autoplay: true,
-    controls: true,
-  });
+  const { oEmbed } = useVimeoOEmbed(course.vimeoUrl, VIMEO_PLAYER_OPTIONS);
 
   const [playing, setPlaying] = useState(false);
   const [videoId, setVideoId] = useState<number | undefined>(undefined);
 
   const loaded = useVimeoEvent(player, "loaded");
-  const timeupdate = useVimeoEvent(player, "timeupdate", 250);
+  const timeupdate = useVimeoEvent(player, "timeupdate", TIMEUPDATE_THROTTLE_MS);
   const progress = useVimeoEvent(player, "progress");
   const volumeStatus = useVimeoEvent(player, "volumechange");
   const playbackRate = useVimeoEvent(player, "playbackratechange");
@@ -152,6 +148,8 @@ export default function CourseDetailScreen() {
     if (loaded?.id) {
       player.getVideoId().then((vid) => {
         setVideoId(vid);
+      }).catch((err) => {
+        console.error("Error fetching video ID:", err);
       });
     }
   }, [loaded?.id, player]);
