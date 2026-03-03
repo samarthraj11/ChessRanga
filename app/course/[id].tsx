@@ -10,36 +10,41 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { useEvent } from "expo";
+import {
+  useVimeoEvent,
+  useVimeoOEmbed,
+  useVimeoPlayer,
+  VimeoView,
+} from "react-native-vimeo-bridge";
 import { Ionicons } from "@expo/vector-icons";
 
 const COURSES: Record<
   string,
-  { title: string; subtitle: string; videoUrl: string }
+  { title: string; subtitle: string; vimeoUrl: string }
 > = {
   "1": {
     title: "Understanding Caro-Kann",
     subtitle: "Master the Caro-Kann Defense from scratch",
-    videoUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    vimeoUrl: "https://player.vimeo.com/video/76979871?h=8272103f6e",
   },
   "2": {
     title: "Sicilian Defense Masterclass",
     subtitle: "Deep dive into the Sicilian Defense variations",
-    videoUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    vimeoUrl: "https://player.vimeo.com/video/76979871?h=8272103f6e",
   },
   "3": {
     title: "Endgame Essentials",
     subtitle: "Learn critical endgame techniques",
-    videoUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    vimeoUrl: "https://player.vimeo.com/video/76979871?h=8272103f6e",
   },
 };
 
 const VOLUME_LEVELS = [0.25, 0.5, 0.75, 1.0];
 const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+const safeNumber = (value: number | undefined | null) => {
+  return value ?? 0;
+};
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -52,90 +57,104 @@ export default function CourseDetailScreen() {
   const router = useRouter();
   const course = COURSES[id] ?? COURSES["1"];
 
-  const player = useVideoPlayer(course.videoUrl, (p) => {
-    p.loop = false;
-    p.volume = 1.0;
-    p.playbackRate = 1.0;
+  const player = useVimeoPlayer(course.vimeoUrl, {
+    autoplay: true,
+    controls: true,
   });
 
-  const { isPlaying } = useEvent(player, "playingChange", {
-    isPlaying: player.playing,
+  const { oEmbed } = useVimeoOEmbed(course.vimeoUrl, {
+    autoplay: true,
+    controls: true,
   });
 
-  const { currentTime } = useEvent(player, "timeUpdate", {
-    currentTime: player.currentTime,
-    currentOffsetFromLive: 0,
-    currentLiveTimestamp: 0,
-    bufferedPosition: 0,
-  });
+  const [playing, setPlaying] = useState(false);
+  const [videoId, setVideoId] = useState<number | undefined>(undefined);
 
-  const [volume, setVolume] = useState(1.0);
-  const [muted, setMuted] = useState(false);
-  const [rate, setRate] = useState(1.0);
+  const loaded = useVimeoEvent(player, "loaded");
+  const timeupdate = useVimeoEvent(player, "timeupdate", 250);
+  const progress = useVimeoEvent(player, "progress");
+  const volumeStatus = useVimeoEvent(player, "volumechange");
+  const playbackRate = useVimeoEvent(player, "playbackratechange");
+  const fullscreen = useVimeoEvent(player, "fullscreenchange");
 
-  const duration = player.duration;
-  const percent = duration > 0 ? currentTime / duration : 0;
+  const volume = safeNumber(volumeStatus?.volume);
+  const currentTime = safeNumber(timeupdate?.seconds);
+  const duration = safeNumber(timeupdate?.duration);
+  const percent = safeNumber(timeupdate?.percent);
+  const loadedFraction = safeNumber(progress?.percent);
+  const muted = volumeStatus?.muted;
 
-  const onPlayPause = useCallback(() => {
-    if (isPlaying) {
-      player.pause();
-    } else {
-      player.play();
+  const onPlay = useCallback(async () => {
+    if (playing) {
+      await player.pause();
+      return;
     }
-  }, [isPlaying, player]);
+    await player.play();
+  }, [playing, player]);
 
-  const onSeekBack = useCallback(() => {
-    player.seekBy(-10);
-  }, [player]);
-
-  const onSeekForward = useCallback(() => {
-    player.seekBy(10);
-  }, [player]);
-
-  const toggleMute = useCallback(() => {
-    const newMuted = !player.muted;
-    player.muted = newMuted;
-    setMuted(newMuted);
-  }, [player]);
+  const toggleMute = useCallback(async () => {
+    await player.setMuted(!muted);
+  }, [player, muted]);
 
   const changeVolume = useCallback(
-    (v: number) => {
-      player.volume = v;
-      setVolume(v);
-      if (v > 0) {
-        player.muted = false;
-        setMuted(false);
+    async (v: number) => {
+      const result = await player.setVolume(v);
+      if (result) {
+        await player.setMuted(false);
       }
     },
     [player]
   );
 
   const changePlaybackRate = useCallback(
-    (r: number) => {
-      player.playbackRate = r;
-      setRate(r);
+    async (rate: number) => {
+      await player.setPlaybackRate(rate);
     },
     [player]
   );
 
-  const getPlayerInfo = useCallback(() => {
-    if (Platform.OS === "web") {
-      alert(
-        `Title: ${course.title}\nDuration: ${formatTime(duration)}\nCurrent Time: ${formatTime(currentTime)}`
-      );
-    } else {
-      Alert.alert(
-        "Course Info",
-        `Title: ${course.title}\nDuration: ${formatTime(duration)}\nCurrent Time: ${formatTime(currentTime)}`
-      );
+  const getPlayerInfo = useCallback(async () => {
+    try {
+      const [vid, title, url, width, height] = await Promise.all([
+        player.getVideoId(),
+        player.getVideoTitle(),
+        player.getVideoUrl(),
+        player.getVideoWidth(),
+        player.getVideoHeight(),
+      ]);
+
+      const message =
+        `videoId: ${vid}\n` +
+        `title: ${title}\n` +
+        `url: ${url}\n` +
+        `width: ${width}\n` +
+        `height: ${height}`;
+
+      if (Platform.OS === "web") {
+        alert(message);
+      } else {
+        Alert.alert("Player Info", message);
+      }
+    } catch (error) {
+      console.error("Error getting player info:", error);
     }
-  }, [course.title, duration, currentTime]);
+  }, [player]);
+
+  useVimeoEvent(player, "playing", () => {
+    setPlaying(true);
+  });
+
+  useVimeoEvent(player, "pause", () => {
+    setPlaying(false);
+  });
 
   useEffect(() => {
-    return () => {
-      player.pause();
-    };
-  }, [player]);
+    if (loaded?.id) {
+      player.getVideoId().then((vid) => {
+        setVideoId(vid);
+      });
+    }
+  }, [loaded?.id, player]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -145,24 +164,24 @@ export default function CourseDetailScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="#F0B429" />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title} numberOfLines={1}>
-              {course.title}
+              {oEmbed?.title ?? course.title}
             </Text>
-            <Text style={styles.subtitle}>{course.subtitle}</Text>
+            <Text style={styles.subtitle}>
+              {videoId ? `Video ID: ${videoId}` : course.subtitle}
+            </Text>
           </View>
         </View>
 
-        {/* Video Player */}
-        <VideoView
-          style={styles.video}
-          player={player}
-          nativeControls={false}
-          contentFit="contain"
-        />
+        {/* Vimeo Video Player */}
+        <VimeoView player={player} style={styles.video} />
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
@@ -171,34 +190,31 @@ export default function CourseDetailScreen() {
           </Text>
           <View style={styles.progressBar}>
             <View
+              style={[
+                styles.bufferFill,
+                { width: `${loadedFraction * 100}%` },
+              ]}
+            />
+            <View
               style={[styles.progressFill, { width: `${percent * 100}%` }]}
             />
           </View>
+          <Text style={styles.bufferText}>
+            Buffered: {Math.round(loadedFraction * 100)}%
+          </Text>
         </View>
 
         {/* Playback Controls */}
         <View style={styles.controls}>
           <TouchableOpacity
-            style={[styles.button, styles.seekButton]}
-            onPress={onSeekBack}
-          >
-            <Text style={styles.buttonText}>-10s</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={[styles.button, styles.playButton]}
-            onPress={onPlayPause}
+            onPress={onPlay}
           >
             <Ionicons
-              name={isPlaying ? "pause" : "play"}
+              name={playing ? "pause" : "play"}
               size={20}
               color="#fff"
             />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.seekButton]}
-            onPress={onSeekForward}
-          >
-            <Text style={styles.buttonText}>+10s</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.button, styles.infoButton]}
@@ -233,6 +249,9 @@ export default function CourseDetailScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          <Text style={styles.volumeText}>
+            Volume: {Math.round(volume * 100)}%{muted ? " (Muted)" : ""}
+          </Text>
         </View>
 
         {/* Playback Rate Controls */}
@@ -244,13 +263,35 @@ export default function CourseDetailScreen() {
                 key={r}
                 style={[
                   styles.speedButton,
-                  rate === r && styles.activeButton,
+                  playbackRate?.playbackRate === r && styles.activeButton,
                 ]}
                 onPress={() => changePlaybackRate(r)}
               >
                 <Text style={styles.buttonText}>{r}x</Text>
               </TouchableOpacity>
             ))}
+          </View>
+        </View>
+
+        {/* Fullscreen Controls */}
+        <View style={styles.fullscreenSection}>
+          <Text style={styles.sectionTitle}>Fullscreen</Text>
+          <View style={styles.fullscreenControls}>
+            <TouchableOpacity
+              style={[
+                styles.fullscreenButton,
+                fullscreen?.fullscreen && styles.activeButton,
+              ]}
+              onPress={() => player.requestFullscreen()}
+            >
+              <Text style={styles.buttonText}>Enter</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.fullscreenButton}
+              onPress={() => player.exitFullscreen()}
+            >
+              <Text style={styles.buttonText}>Exit</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -311,12 +352,32 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: "#2E2E4E",
     borderRadius: 3,
+    position: "relative",
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#F0B429",
     borderRadius: 3,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 2,
+  },
+  bufferFill: {
+    height: "100%",
+    backgroundColor: "rgba(240, 180, 41, 0.3)",
+    borderRadius: 3,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    zIndex: 1,
+  },
+  bufferText: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 4,
   },
   controls: {
     flexDirection: "row",
@@ -336,9 +397,6 @@ const styles = StyleSheet.create({
   playButton: {
     backgroundColor: "#4CAF50",
     paddingHorizontal: 24,
-  },
-  seekButton: {
-    backgroundColor: "#2196F3",
   },
   infoButton: {
     backgroundColor: "#9C27B0",
@@ -365,6 +423,7 @@ const styles = StyleSheet.create({
   volumeControls: {
     flexDirection: "row",
     justifyContent: "space-around",
+    marginBottom: 8,
   },
   volumeButton: {
     paddingHorizontal: 12,
@@ -372,6 +431,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#2E2E4E",
     borderRadius: 6,
     minWidth: 55,
+  },
+  volumeText: {
+    textAlign: "center",
+    color: "#888",
+    fontSize: 14,
   },
   speedSection: {
     margin: 16,
@@ -393,6 +457,26 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 8,
     minWidth: 50,
+  },
+  fullscreenSection: {
+    margin: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 16,
+    backgroundColor: "#1A1A2E",
+    borderRadius: 12,
+  },
+  fullscreenButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#2E2E4E",
+    borderRadius: 6,
+    minWidth: 60,
+  },
+  fullscreenControls: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    flexWrap: "wrap",
   },
   activeButton: {
     backgroundColor: "#F0B429",
