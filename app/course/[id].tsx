@@ -38,6 +38,9 @@ const COURSES: Record<
   },
 };
 
+const VOLUME_LEVELS = [0.25, 0.5, 0.75, 1.0];
+const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -217,7 +220,7 @@ export default function CourseDetailScreen() {
                 {muted ? "Unmute" : "Mute"}
               </Text>
             </TouchableOpacity>
-            {[0.25, 0.5, 0.75, 1.0].map((v) => (
+            {VOLUME_LEVELS.map((v) => (
               <TouchableOpacity
                 key={v}
                 style={[
@@ -236,7 +239,7 @@ export default function CourseDetailScreen() {
         <View style={styles.speedSection}>
           <Text style={styles.sectionTitle}>Playback Speed</Text>
           <View style={styles.speedControls}>
-            {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((r) => (
+            {PLAYBACK_RATES.map((r) => (
               <TouchableOpacity
                 key={r}
                 style={[
