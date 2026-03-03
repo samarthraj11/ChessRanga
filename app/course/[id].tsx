@@ -42,7 +42,7 @@ const COURSES: Record<
 const VOLUME_LEVELS = [0.25, 0.5, 0.75, 1.0];
 const PLAYBACK_RATES = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 const TIMEUPDATE_THROTTLE_MS = 250;
-const VIMEO_PLAYER_OPTIONS = { autoplay: true, controls: true };
+const VIMEO_PLAYER_OPTIONS = { autoplay: false, controls: true };
 
 const safeNumber = (value: number | undefined | null) => {
   return value ?? 0;
@@ -57,11 +57,10 @@ const formatTime = (seconds: number) => {
 export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const [currentCourseId, setCurrentCourseId] = useState<string>(id || "1");
   const course = COURSES[id] ?? COURSES["1"];
 
   const player = useVimeoPlayer(course.vimeoUrl, VIMEO_PLAYER_OPTIONS);
-
-  const { oEmbed } = useVimeoOEmbed(course.vimeoUrl, VIMEO_PLAYER_OPTIONS);
 
   const [playing, setPlaying] = useState(false);
   const [videoId, setVideoId] = useState<number | undefined>(undefined);
@@ -79,6 +78,21 @@ export default function CourseDetailScreen() {
   const percent = safeNumber(timeupdate?.percent);
   const loadedFraction = safeNumber(progress?.percent);
   const muted = volumeStatus?.muted;
+
+  useVimeoEvent(player, "ended", () => {
+    // Alert.alert("Ended", "this video has ended.");
+    // Find the next course ID
+    const courseKeys = Object.keys(COURSES);
+    const currentIndex = courseKeys.indexOf(currentCourseId);
+
+    if (currentIndex < courseKeys.length - 1) {
+      const nextCourseId = courseKeys[currentIndex + 1];
+      setCurrentCourseId(nextCourseId); // This automatically updates the player's URL
+      Alert.alert(COURSES[currentCourseId].title, "next is this.");
+    } else {
+      Alert.alert("Finished", "You have completed all courses!");
+    }
+  });
 
   const onPlay = useCallback(async () => {
     if (playing) {
@@ -170,7 +184,7 @@ export default function CourseDetailScreen() {
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title} numberOfLines={1}>
-              {oEmbed?.title ?? course.title}
+              {course.title}
             </Text>
             <Text style={styles.subtitle}>
               {videoId ? `Video ID: ${videoId}` : course.subtitle}
@@ -179,7 +193,7 @@ export default function CourseDetailScreen() {
         </View>
 
         {/* Vimeo Video Player */}
-        <VimeoView player={player} style={styles.video} />
+        <VimeoView key={currentCourseId} player={player} style={styles.video} />
 
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
