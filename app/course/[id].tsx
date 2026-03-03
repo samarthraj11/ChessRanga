@@ -58,7 +58,8 @@ export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [currentCourseId, setCurrentCourseId] = useState<string>(id || "1");
-  const course = COURSES[id] ?? COURSES["1"];
+  const [autoPlayNext, setAutoPlayNext] = useState(false);
+  const course = COURSES[currentCourseId] ?? COURSES["1"];
 
   const player = useVimeoPlayer(course.vimeoUrl, VIMEO_PLAYER_OPTIONS);
 
@@ -80,15 +81,13 @@ export default function CourseDetailScreen() {
   const muted = volumeStatus?.muted;
 
   useVimeoEvent(player, "ended", () => {
-    // Alert.alert("Ended", "this video has ended.");
-    // Find the next course ID
     const courseKeys = Object.keys(COURSES);
     const currentIndex = courseKeys.indexOf(currentCourseId);
 
     if (currentIndex < courseKeys.length - 1) {
       const nextCourseId = courseKeys[currentIndex + 1];
-      setCurrentCourseId(nextCourseId); // This automatically updates the player's URL
-      Alert.alert(COURSES[currentCourseId].title, "next is this.");
+      setAutoPlayNext(true);
+      setCurrentCourseId(nextCourseId);
     } else {
       Alert.alert("Finished", "You have completed all courses!");
     }
@@ -167,6 +166,15 @@ export default function CourseDetailScreen() {
       });
     }
   }, [loaded?.id, player]);
+
+  useEffect(() => {
+    if (autoPlayNext && loaded?.id) {
+      player.play().catch((err) => {
+        console.error("Error auto-playing next video:", err);
+      });
+      setAutoPlayNext(false);
+    }
+  }, [autoPlayNext, loaded?.id, player]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
