@@ -65,6 +65,7 @@ export default function CourseDetailScreen() {
 
   const [playing, setPlaying] = useState(false);
   const [videoId, setVideoId] = useState<number | undefined>(undefined);
+  const [videoTitle, setVideoTitle] = useState<string | undefined>(undefined);
 
   const loaded = useVimeoEvent(player, "loaded");
   const timeupdate = useVimeoEvent(player, "timeupdate", TIMEUPDATE_THROTTLE_MS);
@@ -159,10 +160,16 @@ export default function CourseDetailScreen() {
 
   useEffect(() => {
     if (loaded?.id) {
+      setVideoTitle(undefined);
       player.getVideoId().then((vid) => {
         setVideoId(vid);
       }).catch((err) => {
         console.error("Error fetching video ID:", err);
+      });
+      player.getVideoTitle().then((title) => {
+        setVideoTitle(title);
+      }).catch((err) => {
+        console.error("Error fetching video title:", err);
       });
     }
   }, [loaded?.id, player]);
@@ -192,7 +199,7 @@ export default function CourseDetailScreen() {
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title} numberOfLines={1}>
-              {course.title}
+              {videoTitle || course.title}
             </Text>
             <Text style={styles.subtitle}>
               {videoId ? `Video ID: ${videoId}` : course.subtitle}
